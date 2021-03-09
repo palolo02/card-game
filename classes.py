@@ -236,15 +236,15 @@ class Player:
     
     # Suggested approach to apply the Resurrect Spell as the machine
     def likelyResurrectSpell(self):
-        if(self.deck.getNoCards() <= 2):
-            return True
-        return False
+        if(self.deck.getNoCards() >= 2):
+            return False
+        return True
     
     # Suggested approach to apply the God Spell as the machine
     def likelyGodSpell(self):
-        if(self.deck.getNoCards() <= 3 ):
-            return True
-        return False
+        if(self.deck.getNoCards() >= 3 ):
+            return False
+        return True
 
 class Game:
 # -------- Class that represents a game --------
@@ -258,13 +258,18 @@ class Game:
         self.outdatedDeck = Deck()
         self.statusGame = True
         self.currentPlayer = None
+        self.debug = False
 
     # Required steps to play
     def startGame(self):
         self.choosePlayer()
         self.setTurns()
         self.isGameOver()
-             
+
+    # Enable debug to look at the cards on the deck
+    def enableDebug(self,debug):
+        self.debug = debug
+
     # Show the cards in the outdated deck
     def showOutdatedDeck(self):
         self.outdatedDeck.showDeck()
@@ -277,11 +282,13 @@ class Game:
         # Validate that there is at least one card to choose
         if  _noCards > 0 :
             _card = randint(0,_noCards-1)
-            print(f'Random card chosen: {_card}')
+            #print(f'Random card chosen: {_card}')
+            print(f'Adding card to the top of the deck')
             card = self.outdatedDeck.getSpecificCard(_card, True)
-            print(f'---------------------------')
-            print(f'Added card: {card}')
-            print(f'---------------------------')
+            if(self.debug):
+                print(f'---------------------------')
+                print(f'Added card: {card}')
+                print(f'---------------------------')
         else:
             print('No available cards')
         return card
@@ -289,9 +296,17 @@ class Game:
     # Simulate a dice to choose the first player to play
     @wait2Seconds
     def choosePlayer(self):
-        print('Please, select the option of the game: 1- Player vs Player | 2- Player vs Computer')
-        # try:
-        res = int(input())
+        #print('Please, select the option of the game: 1- Player vs Player | 2- Player vs Computer')
+        try:
+            res = int(input('Please, select the option of the game: [1] Player vs Player - [2] Player vs Computer '))
+            if(res < 1 or res > 2):
+                res = randint(1,2)
+                print(f'Option not valid. Randomly choosing one: {res}')
+                
+        except ValueError:
+            res = randint(1,2)
+            print(f'Option not valid. Randomly choosing one: {res}')           
+
         noCards = Deck.MIN_NO_CARDS
         Deck.setValuesRange()
         player1 = Player(name='Player1', deck=Deck(noCards))
@@ -303,8 +318,9 @@ class Game:
         player1.deck.suffleDeck()
         player2.deck.suffleDeck()
         # For validation purposes
-        player1.showDeck()
-        player2.showDeck()
+        if(self.debug):
+            player1.showDeck()
+            player2.showDeck()
         self.players = [player1, player2]
     
     # Determine the order of the players during the first round to start the game
@@ -323,11 +339,15 @@ class Game:
             self.setCurrentPlayer(self.players[0])
             self.currentPlayer.setNoPlayer(0)
             self.currentPlayer.setOpponentPlayer(1)
+            self.players[1].setNoPlayer(1)
+            self.players[1].setOpponentPlayer(0)
         else:
             print(f'<< {self.players[1].name} >> goes first: {firstDice}:{secondDice}')
             self.setCurrentPlayer(self.players[1])
             self.currentPlayer.setNoPlayer(1)
             self.currentPlayer.setOpponentPlayer(0)   
+            self.players[0].setNoPlayer(0)
+            self.players[0].setOpponentPlayer(1)
 
     # Typical steps in one turn
     @wait2Seconds
@@ -338,15 +358,24 @@ class Game:
         if(self.currentPlayer.hasResurrectSpell()):
             # Validate whether the player is a computer or not
             if(not self.currentPlayer.isComputer()):
-                option = int(input(f'<< {self.currentPlayer.name} >>, Would you like to play the Resurrect spell? [1] Yes - [2] No : '))
+                try:
+                    option = int(input(f'<< {self.currentPlayer.name} >>, Would you like to play the Resurrect spell? [1] Yes - [2] No : '))
+                    if(option < 1 or option > 2):
+                        option = randint(1,2)
+                        print(f'Option not valid. Randomly choosing one: {option}')
+                        
+                except ValueError:
+                    option = 1 if self.currentPlayer.likelyResurrectSpell() else 2
+                    print(f'Option not valid. Randomly choosing one: {option}')
             else:
-                option = 1 if not self.currentPlayer.likelyResurrectSpell() else 2
+                option = 1 if self.currentPlayer.likelyResurrectSpell() else 2
                 print(f'<< {self.currentPlayer.name} >>, Would you like to play the Resurrect spell? [1] Yes - [2] No : {option}')
                 sleep(1)
             # Validate answer
             if(option == 1):
                 self.resurrectSpell(self.currentPlayer)
-                self.currentPlayer.showDeck()
+                if(self.debug):
+                    self.currentPlayer.showDeck()
         # Picking up card at the top 
         card1 = self.currentPlayer.pickCard()
         if card1 is not None:
@@ -354,7 +383,16 @@ class Game:
             print(f'Showing card current player: [{card1}]')
             print(f'---------------------------')
             if(not self.currentPlayer.isComputer()):
-                characteristic = int(input('Which skill would you like to choose? [1,2,3,4]: '))-1
+                try:
+                    characteristic = int(input('Which skill would you like to choose? [1,2,3,4]: '))-1
+                    if(characteristic < 0 or characteristic > 3):
+                        characteristic = randint(0,3)
+                        print(f'Option not valid. Randomly choosing one: {characteristic+1}')
+                        
+                except ValueError:
+                    characteristic = randint(0,3)
+                    print(f'Option not valid. Randomly choosing one: {characteristic+1}')
+                    
             else:
                 characteristic = randint(0,3)
                 print(f'Which skill would you like to choose? [1,2,3,4]: {characteristic+1}')
@@ -362,9 +400,18 @@ class Game:
             sleep(1)
             if(self.currentPlayer.hasGodSpell()):
                 if(not self.currentPlayer.isComputer()):
-                    option = int(input(f'What would you like to do? [1] Challenge player - [2] Play God spell: '))
+                    try:
+                        option = int(input(f'What would you like to do? [1] Challenge player - [2] Play God spell: '))
+                        if(option < 1 or option > 2):
+                            option = randint(1,2)
+                            print(f'Option not valid. Randomly choosing one: {option}')
+                            
+                    except ValueError:
+                        option = randint(1,2)
+                        print(f'Option not valid. Randomly choosing one: {option}')
+                        
                 else:
-                    option = randint(1,2)
+                    option = 2 if self.currentPlayer.likelyGodSpell() else 1
                     print(f'What would you like to do? [1] Challenge player - [2] Play God spell: {option}')
                 
                 sleep(1)
@@ -378,8 +425,12 @@ class Game:
                 print('Challenging opponent')
                 self.challenge(self.currentPlayer, characteristic, card1)
             print(' +-------- End of turn ---------')
-            self.players[0].showDeck()
-            self.players[1].showDeck()
+            if(self.debug):
+                self.players[0].showDeck()
+                self.players[1].showDeck()
+            else:
+                print(f'Deck1: [{self.players[0].deck.getNoCards()}]')
+                print(f'Deck2: [{self.players[1].deck.getNoCards()}]')
             self.score()
         else: # No more cards. Game over
             self.statusGame = False
@@ -407,9 +458,18 @@ class Game:
         _opponent = self.players[player.getOpponentPlayer()]
         if(_opponent.hasResurrectSpell()):
             if(not _opponent.isComputer()):
-                option = int(input(f'<< {_opponent.name} >>, Would you like to use Resurrect Spell? [1] Yes | [2] No: '))
+                try:
+                    option = int(input(f'<< {_opponent.name} >>, Would you like to use Resurrect Spell? [1] Yes | [2] No: '))
+                    if(option < 1 or option > 2):
+                        option = randint(1,2)
+                        print(f'Option not valid. Randomly choosing one: {option}')
+                        
+                except ValueError:
+                    option = randint(1,2)
+                    print(f'Option not valid. Randomly choosing one: {option}')
+                
             else:
-                option = 1 if not _opponent.likelyResurrectSpell() else 2
+                option = 1 if _opponent.likelyResurrectSpell() else 2
                 print(f'<< {_opponent.name} >>, Would you like to use Resurrect Spell? [1] Yes | [2] No: {option}')
                 sleep(1)
             if(option == 1):
@@ -419,11 +479,23 @@ class Game:
             print('+ ---------- God Spell -----------')
             print('Showing opponent cards:')
             _opponent.showDeck()
+            _max = 1 if _opponent.deck.getNoCards() == 1 else _opponent.deck.getNoCards()-1
             if(not player.isComputer()):
-                option = int(input('Which card would you choose? '))-1
+                try:
+                    option = int(input('Which card would you like to choose? '))
+                    if(option < 1 or option > _max):
+                        option = randint(0,_max)
+                        print(f'Option not valid. Randomly choosing one: {option+1}')
+                    else:
+                        option -= 1
+                        
+                except ValueError:
+                    option = randint(0,_max)
+                    print(f'Option not valid. Randomly choosing one: {option+1}')
+                    
             else:
-                option = randint(0,self.currentPlayer.deck.getNoCards()-1)
-                print(f'Which card would you choose? {option+1}')
+                option = randint(0,_max)
+                print(f'Which card would you like to choose? {option+1}')
             
             sleep(1)
             # Choose any card
@@ -438,8 +510,9 @@ class Game:
     def resurrectSpell(self, _player):
         # Validate whether the player has not used Resurrect spell and 
         # if there are enough cards in the ourdated Deck
+        print(_player.name)
         if self.outdatedDeck.getNoCards() == 0:
-            print('There are no enough cards to choose yet. Maybe next turn')
+            print('There are no cards to choose yet. Maybe next turn')
             return
         if(_player.hasResurrectSpell()):
             print('+ ---------- Resurrect Spell -----------')
@@ -455,6 +528,7 @@ class Game:
     # Challenge the opponent with a single card
     def challenge(self, player, characteristic, card1):
         #print(f'Current Player: << {player.name} >>')
+        print(f'Opponent: {player.getOpponentPlayer()}' )
         _opponent = self.players[player.getOpponentPlayer()]
         card2 = _opponent.pickCard()
         self._challenge(player, characteristic, card1, card2)

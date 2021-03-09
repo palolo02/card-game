@@ -49,5 +49,7 @@ def testLoadCards():
 
 
 #testCardsPoints()
-testLoadCards()
+#testLoadCards()
 #testCard()
+for i in range(15):
+    print(randint(1,2))
